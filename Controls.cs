@@ -38,7 +38,8 @@ sealed class SettingsCanvas : Panel
         var ink = MouseWindow.Ink; var muted = PaintKit.Secondary; var accent = PaintKit.Accent;
         PaintKit.Box(g, new RectangleF(32, 29, 28, 28), 8, accent);
         using (var p = new Pen(MouseWindow.Canvas, 1.8f)) { g.DrawLine(p, 40, 43, 52, 43); g.DrawLine(p, 46, 37, 46, 49); }
-        PaintKit.Text(g, "StickMouse", 70, 31, 18, ink, true);
+        PaintKit.Text(g, "StickMouse", 70, 25, 18, ink, true);
+        PaintKit.Text(g, "by CoderKnight", 70, 50, 10, muted);
         PaintKit.Text(g, "DESKTOP COMPANION", w-180, 37, 10, muted);
         using var line = new Pen(PaintKit.Line); g.DrawLine(line, 32, 78, w-32, 78);
         PaintKit.Text(g, "YOUR SETUP", 32, 103, 10, muted, true);

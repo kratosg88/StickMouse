@@ -58,7 +58,7 @@ Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="StickMouse - Ready check" Width="660" Height="620" MinWidth="580" MinHeight="500" Background="#14171A" Foreground="#EDF1EF" FontFamily="Segoe UI" FontSize="13" WindowStartupLocation="CenterScreen">
 <Window.Resources><Style TargetType="Button"><Setter Property="Padding" Value="20,11"/><Setter Property="Background" Value="#9DDABE"/><Setter Property="Foreground" Value="#14291E"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Cursor" Value="Hand"/></Style></Window.Resources>
 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="32">
-<TextBlock Text="STICKMOUSE / SETUP" Foreground="#9DDABE" FontSize="12" FontWeight="SemiBold"/>
+<TextBlock Text="STICKMOUSE / CODERKNIGHT" Foreground="#9DDABE" FontSize="12" FontWeight="SemiBold"/>
 <TextBlock Text="A quick check before you play." FontSize="26" FontWeight="SemiBold" Margin="0,18,0,8"/>
 <TextBlock Text="Select missing components to install, then choose Next." Foreground="#A3AEB3" TextWrapping="Wrap"/>
 <Border Background="#1C2126" CornerRadius="12" Padding="20" Margin="0,24,0,20"><StackPanel>
