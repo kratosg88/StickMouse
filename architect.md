@@ -1,0 +1,13 @@
+# Architecture
+.NET 8 Windows Forms without third-party packages. Program.cs polls XInput slots, applies configurable radial dead zone/response curve and emits relative mouse input. Idle detection polls every 250ms; connected polling requests 8ms (actual WinForms scheduling is OS-dependent). Connection/switch/disconnect always resets arming and requires explicit Start. F8 cannot start while disconnected. Only one app instance may control the pointer.
+
+MouseButtonLatch.cs owns successful button transitions. Failed releases remain pending and are retried while paused/disconnected. Windows can still deny input; no release guarantee is possible across protected desktops or forced process termination.
+
+Controls.cs draws the interface with logical coordinates scaled to current DPI and semantic child controls. Interface.cs lays out the scrollable canvas, configures controls, and persists bounded settings atomically after a 450ms debounce and at close. Preview mode avoids native polling/injection; state tests use isolated preference files.
+
+Launch.cmd invokes Setup.ps1 through Windows PowerShell before .NET is needed. WPF preflight lists local prerequisites and lets users select the missing Desktop Runtime. Next downloads official release metadata/installer, validates allowlisted HTTPS source, SHA-512 and Microsoft Authenticode signature, requests UAC, handles installer exit status and redetects the runtime before app launch. Preview/check/self-test modes do not install software. No network/service/driver dependencies in the main app.
+
+## OTA update boundary
+UpdateProtocol.cs verifies pinned-key RSA-SHA256 envelopes before parsing release metadata, enforces newer versions and exact repo/tag URLs, bounds download/uncompressed sizes, validates SHA-256 and ZIP allowlisted paths, and backs up/restores on replacement errors. Updater.cs checks asynchronously on Shown/every six hours, cancels on close, and never changes controller availability on check/download failure. Explicit Restart & update starts a copied trusted helper, waits for the old process, reacquires the app mutex, re-verifies the archive and replaces files. Settings are outside the target tree. Public trust configuration is embedded at build; no remote key replacement.
+
+Update signing uses scripts/Initialize-Signing.ps1 and New-Release.ps1; the private key is DPAPI-protected outside the project, the public key is safe in the repository. No GitHub client credentials are distributed. A published GitHub stable release activates the feed. Current replacement rollback covers caught I/O errors, not power loss or future startup incompatibility; backups are retained.

@@ -1,0 +1,6 @@
+# Plan
+Scope: native UI/runtime and prerequisite bootstrap. Preserve left-stick movement and L3/R3 mapping. Completed: compact DPI-aware layout, keyboard controls, autosave/reset, hotplug start/stop gate, retained release state on rejected input, safe diagnostics, single-instance guard and Windows-native preflight/install selection.
+
+Validation: Release build, motion/button failure tests, settings/autosave tests, connection-state tests, offline setup tests, local prerequisite scan, native renders of disconnected/connected states and missing-runtime setup. Remaining release gates: actual gamepad USB/Bluetooth and disconnect-during-drag; clean-machine Microsoft download/install/UAC; multi-monitor DPI. No driver or game-hook work.
+
+OTA scope: GitHub Releases repository created under kratosg88. Implemented automatic non-blocking checks, signed feed/hash/archive verification, explicit download/restart actions, helper handoff and caught-error rollback. Verified signatures, rejects, user-data preservation, write-failure restoration and five no-softlock UI failure states. Prepared publisher scripts and protected local signing identity. Pending live GitHub publication and real older-client update smoke; no claim of power-loss-atomic install.
