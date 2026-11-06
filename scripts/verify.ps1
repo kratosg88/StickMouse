@@ -21,5 +21,8 @@ if($LASTEXITCODE -ne 0){throw 'Connected UI render failed'}
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'verify-startup.ps1') *> (Join-Path $logs 'startup-test.log')
 if($LASTEXITCODE -ne 0){Get-Content (Join-Path $logs 'startup-test.log');throw 'Native startup verification failed'}
 Get-Content (Join-Path $logs 'startup-test.log')
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'verify-shortcut.ps1') *> (Join-Path $logs 'shortcut-test.log')
+if($LASTEXITCODE -ne 0){Get-Content (Join-Path $logs 'shortcut-test.log');throw 'Desktop shortcut verification failed'}
+Get-Content (Join-Path $logs 'shortcut-test.log')
 Write-Output "VERIFY OK mode=build-input-settings-setup-render; log=$log"
 

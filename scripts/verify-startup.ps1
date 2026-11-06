@@ -45,7 +45,11 @@ try {
  $reopened=Launch-Test
  if($reopened.Status -ne 'restored' -or $reopened.ProcessId -ne $tray.ProcessId -or -not $reopened.NativeVisible){throw 'Tray-hidden instance did not reopen'}
  $tray=$reopened
- 'PASS: visible HWND, native screenshot, repeat-launch restore, intentional tray startup acknowledgement, tray reopen in same process' 
+ [StartupNative]::PostMessage([IntPtr][long]$tray.WindowHandle,[StartupNative]::RegisterWindowMessage('StickMouse.StartupSmoke.Quit'),[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+ try{$process=[Diagnostics.Process]::GetProcessById([int]$tray.ProcessId);if(-not $process.WaitForExit(3000)){throw 'Tray test window did not quit'}}catch [ArgumentException]{}
+ $tray=Start-StickMouse -Smoke -TraySmoke -OpenUi
+ if($tray.Status -ne 'visible' -or -not $tray.NativeVisible){throw 'Explicit desktop quick launch did not open the main UI'}
+ 'PASS: visible HWND, native screenshot, repeat-launch restore, intentional tray startup acknowledgement, tray reopen in same process, explicit desktop launch opens UI' 
 } finally {
  foreach($known in @($first,$tray)){if($known){[StartupNative]::PostMessage([IntPtr][long]$known.WindowHandle,[StartupNative]::RegisterWindowMessage('StickMouse.StartupSmoke.Quit'),[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null}}
 }
