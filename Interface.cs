@@ -71,7 +71,7 @@ sealed partial class MouseWindow
     readonly Dictionary<Control, Font> layoutFonts = new();
     void BuildInterface()
     {
-        Text = "StickMouse"; AutoScaleMode = AutoScaleMode.None;
+        Text = "StickMouse"; Icon=appIcon; AutoScaleMode = AutoScaleMode.None;
         BackColor = Canvas; ForeColor = Ink; StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 10);
         var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Canvas };

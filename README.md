@@ -1,5 +1,7 @@
 # StickMouse
 
+Published by **CoderKnight**.
+
 A Windows desktop companion for an Xbox / XInput-compatible controller.
 
 ## Open
@@ -8,7 +10,7 @@ Extract the complete folder, then double-click **Launch.cmd**. Every launch open
 The ready check detects Windows, processor architecture, application files and .NET 8 Desktop Runtime. If the runtime is missing, select its checkbox and click Next. Setup retrieves the current .NET 8 release from Microsoft, verifies SHA-512 and the Microsoft publisher signature, and runs its installer. Approve the Windows administrator prompt if asked. No restart is forced. Failed/cancelled installation stays on the setup screen with an error and can be retried. Installed components are skipped. No download occurs before Next; normal launches with a suitable runtime work offline. Windows itself must be upgraded/repaired separately when required.
 
 ## Controller
-The app starts stopped. It polls for XInput controllers automatically. While disconnected it says **No controller detected** and disables **Start controller mouse**. Connect a controller, then click Start. Click Stop or press F8 to pause. Disconnecting stops control and releases held mouse buttons; reconnecting requires Start again. The app waits for L3 and R3 to be released before arming clicks.
+The app starts stopped in the Windows notification tray. Double-click its gamepad icon or choose Open StickMouse to show the settings window. It polls for XInput controllers automatically. While disconnected it says **No controller detected** and disables **Start controller mouse**. Connect a controller, then click Start. Click Stop, use Pause in the tray menu, or press F8 to pause. Disconnecting stops control and releases held mouse buttons; reconnecting requires Start again. The app waits for L3 and R3 to be released before arming clicks.
 
 - Left stick: move cursor.
 - Press L3: left-click; hold to drag.
@@ -44,3 +46,12 @@ Updater-enabled clients check GitHub Releases in the background on launch and ev
 Release metadata is signed with the owner's RSA key; clients pin the public key and repository. Newer versions only. Downloads are size-limited and SHA-256 verified. The user chooses Download, then Restart & update while controller mouse mode is stopped. Current settings in LocalAppData remain outside the application update. Detected write failures restore application files from backup. Backup/staging files remain in LocalAppData/StickMouse/updates for recovery; power loss/forced termination during replacement is not crash-atomic and may require manual restoration from backup. Protected/read-only installations must be updated from a user-writable folder. No admin update service or forced updates.
 
 Publisher guide: UPDATES.md. Public source/release repository: https://github.com/kratosg88/StickMouse
+
+## Startup recovery (v1.1.2)
+Setup now starts the GUI normally with a hidden console only, and waits for a visible-window or active-tray acknowledgement before closing. Reopening Launch.cmd restores a hidden/minimized existing StickMouse window instead of displaying an already-running message. SM_START/SM_READY record the launch and visible/restored state; SM013 is an unresponsive existing instance and SM113 is a setup handoff timeout. If a previous version is running invisibly, opening this fixed version can restore that older window so it can be closed or updated.
+
+## Free signing policy
+GitHub releases remain free and are authenticated by the existing signed OTA manifest. Public Windows Authenticode signing has not been provisioned. The optional signing scripts support a future trusted certificate, and a development-only self-signed certificate can be created without installing root trust. See SIGNING.md. No paid service, certificate purchase, root-trust change or certificate creation was performed for this fix.
+
+## Tray operation
+Every normal launch automatically creates a gamepad tray icon and starts with the main UI hidden. There is no Start in tray setting or prompt. Double-click the icon or right-click > Open StickMouse to show the UI. Closing/minimizing the window hides it in the tray while control keeps running. Right-click > Quit StickMouse fully exits and releases mouse buttons. Start/Pause in the tray menu is disabled until a controller is connected. Look under the ^ notification-area overflow if Windows hides the icon. This does not register Windows login autostart.

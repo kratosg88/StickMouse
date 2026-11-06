@@ -14,3 +14,7 @@ The public repository is https://github.com/kratosg88/StickMouse. Clients fetch 
 Update protocol v1 intentionally permits six application file paths and the current net8.0-windows runtime layout. A runtime-major migration or new package file requires a compatible bridge release or manual installer, not simply uploading a changed ZIP. Caught file-write failures roll back; power-loss recovery is manual using the retained backup. No forced minimum version or mandatory update gate exists.
 
 References: https://docs.github.com/en/repositories/releasing-projects-on-github/linking-to-releases and https://learn.microsoft.com/dotnet/standard/security/cryptographic-signatures
+
+v1.1.2 adds visible-window startup confirmation and existing-window restore. The original six-file update layout and OTA trust identity are retained. New-Release.ps1 optionally accepts CertificateThumbprint for Authenticode staging signatures before ZIP/hash/signing; omit it for the current free GitHub build. SIGNING.md documents development-only self-signing and certificate requirements.
+
+Final v1.1.2 combines startup recovery with automatic tray operation and gamepad branding. The package retains six known file slots, so v1.1.0/v1.1.1 clients can accept it. Native icon resources are embedded in the DLL/apphost build; no extra client asset file is required.

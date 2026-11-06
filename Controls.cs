@@ -36,8 +36,7 @@ sealed class SettingsCanvas : Panel
         base.OnPaint(e); var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         float scale = DeviceDpi / 96f; g.ScaleTransform(scale, scale); float w = Width / scale;
         var ink = MouseWindow.Ink; var muted = PaintKit.Secondary; var accent = PaintKit.Accent;
-        PaintKit.Box(g, new RectangleF(32, 29, 28, 28), 8, accent);
-        using (var p = new Pen(MouseWindow.Canvas, 1.8f)) { g.DrawLine(p, 40, 43, 52, 43); g.DrawLine(p, 46, 37, 46, 49); }
+        GamepadIcons.Draw(g,new RectangleF(30,25,36,36));
         PaintKit.Text(g, "StickMouse", 70, 25, 18, ink, true);
         PaintKit.Text(g, "by CoderKnight", 70, 50, 10, muted);
         PaintKit.Text(g, "DESKTOP COMPANION", w-180, 37, 10, muted);

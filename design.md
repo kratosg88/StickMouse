@@ -8,3 +8,7 @@ Sliders have track-only pointer hit areas, keyboard/focus/hover support and acce
 Artifacts: preview.png (disconnected), .verify/connected-preview.png (simulated connection), setup-preview.png (simulated missing runtime).
 
 Updates: compact Check for updates control and status row under settings; unavailable checks/downloads show inline status without modal blocking or disabling Start. Automatic checks after startup/every six hours, manual retry, Download then Restart & update. Version shown in the row. Height includes the footer; smaller work areas scroll.
+
+Publisher attribution: small by CoderKnight text beneath the app wordmark and CODERKNIGHT in the setup brand line.
+
+Gamepad branding replaces the plus mark in header, tray, taskbar/titlebar and executable icon resource. Tray startup is automatic with no Start in tray control. Open/Start/Pause/Quit are available in the gamepad context menu; one tray hint explains recovery. Main window preview intentionally renders UI even though normal startup is hidden.

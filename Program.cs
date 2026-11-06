@@ -17,6 +17,7 @@ static class Program
     }
     static void Run(string[] args)
     {
+        if(args.Length==2 && args[0]=="--export-icon"){GamepadIcons.SaveIco(args[1]);return;}
         if (args.Length == 2 && args[0] == "--verify-release")
         {
             var manifest=UpdateProtocol.Verify(File.ReadAllText(Path.Combine(args[1],"update.json")),UpdateClient.Trust,new Version(0,0,0,0));
@@ -25,7 +26,7 @@ static class Program
             return;
         }
         if (args.Length == 2 && args[0] == "--apply-update") { UpdateClient.Apply(args[1]); return; }
-        if (args.Contains("--self-test")) { Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize(); Motion.Test(); UpdateTests.Run(); MouseButtonLatch.Test(); MouseWindow.TestInterface(); return; }
+        if (args.Contains("--self-test")) { Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize(); Motion.Test(); UpdateTests.Run(); MouseButtonLatch.Test(); MouseWindow.TestInterface(); MouseWindow.TestTray(); return; }
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize();
         if (args.Contains("--preview"))
         {
@@ -37,9 +38,21 @@ static class Program
             bitmap.Save(args[Array.IndexOf(args, "--preview") + 1]);
             window.Close(); return;
         }
-        using var instance = new Mutex(true, "Local\\StickMouse.Desktop", out bool first);
-        if (!first) { MessageBox.Show("StickMouse is already running. Use the existing window or press F8 to pause it.", "StickMouse"); return; }
-        using var app = new MouseWindow();
+        int tokenIndex=Array.IndexOf(args,"--launch-token");
+        if(tokenIndex>=0 && tokenIndex+1<args.Length && Guid.TryParseExact(args[tokenIndex+1],"N",out _))AppStartup.LaunchToken=args[tokenIndex+1];
+        if(args.Contains("--startup-smoke"))
+        {
+            int dataIndex=Array.IndexOf(args,"--diagnostics-dir");
+            if(dataIndex>=0 && dataIndex+1<args.Length)AppStartup.DataOverride=Path.GetFullPath(args[dataIndex+1]);
+        }
+        AppStartup.Log("SM_START","normal_start");
+        using var instance = new Mutex(true, args.Contains("--startup-smoke")?"Local\\StickMouse.StartupSmoke":"Local\\StickMouse.Desktop", out bool first);
+        if (!first) { if(!AppStartup.RestoreExisting(args.Contains("--startup-smoke")))MessageBox.Show("The existing StickMouse window did not respond. Check its taskbar button or close StickMouse in Task Manager, then retry. Code: SM013.","StickMouse"); return; }
+        using var app = new MouseWindow(args.Contains("--startup-smoke"),null,args.Contains("--tray-smoke"));
+        if(args.Contains("--startup-smoke"))app.Text="StickMouse [startup test]";
+        AppStartup.Attach(app);
+        using var smokeTimer=new System.Windows.Forms.Timer{Interval=15000};
+        if(args.Contains("--startup-smoke")){smokeTimer.Tick+=(_,_)=>app.QuitApplication();smokeTimer.Start();}
         try { Application.Run(app); } finally { app.StopInput(); }
     }
 }
@@ -88,16 +101,17 @@ sealed partial class MouseWindow : Form
     int lastInputError;
     int controller = -1;
     readonly string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StickMouse", "runtime.log");
-    public MouseWindow(bool preview = false, string? settingsPath = null)
+    public MouseWindow(bool preview = false, string? settingsPath = null, bool trayForTests = false)
     {
         previewMode = preview; preferencesOverride = settingsPath;
         InitializeUpdater();
         BuildInterface();
         LoadPreferences();
+        if(!previewMode || trayForTests)InitializeTray();
         enabled.CheckedChanged += (_, _) => { Release(); armed = false; if (enabled.Checked) inputError = null; UpdateStatus(); };
         UpdateConnection(-1);
         timer.Tick += (_, _) => TickInput();
-        FormClosing += (_, _) => { timer.Stop(); Release(); if (!previewMode) SavePreferences(); };
+
         if (!previewMode)
         {
             if (!Native.RegisterHotKey(Handle, 1, 0x4000, 0x77))
@@ -113,13 +127,16 @@ sealed partial class MouseWindow : Form
     }
     protected override void WndProc(ref Message m)
     {
+        if(m.Msg==AppStartup.RestoreMessage){ShowFromTray();m.Result=(IntPtr)1;return;}
+        if(m.Msg==AppStartup.SmokeQuitMessage && previewMode && Text=="StickMouse [startup test]"){QuitApplication();return;}
         if (m.Msg == 0x0312 && enabled.Enabled) enabled.Checked = !enabled.Checked;
         base.WndProc(ref m);
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { Release(); timer.Dispose(); saveTimer.Dispose(); updateCancellation.Cancel(); updateTimer.Dispose(); foreach(var font in layoutFonts.Values) font.Dispose(); layoutFonts.Clear(); if (IsHandleCreated) Native.UnregisterHotKey(Handle, 1); }
+        if (disposing) { Release(); DisposeTray(); timer.Dispose(); saveTimer.Dispose(); updateCancellation.Cancel(); updateTimer.Dispose(); foreach(var font in layoutFonts.Values) font.Dispose(); layoutFonts.Clear(); if (IsHandleCreated) Native.UnregisterHotKey(Handle, 1); }
         base.Dispose(disposing);
+        if(disposing)appIcon.Dispose();
     }
     void TickInput()
     {
@@ -152,6 +169,7 @@ sealed partial class MouseWindow : Form
         status.Text = inputError ?? (controller < 0 ? "No controller detected\nConnect via USB or Bluetooth" : $"Controller {controller + 1} connected\n{(enabled.Checked ? "Mouse control active" : "Ready. Press Start to begin.")}");
         canvas.Connected = controller >= 0;
         canvas.Active = enabled.Checked;
+        UpdateTray();
     }
     internal void StopInput() { timer.Stop(); Release(); }
     void Release()
@@ -193,5 +211,6 @@ static class Native
     [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
     [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hwnd, int id);
 }
+
 
 

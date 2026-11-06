@@ -129,7 +129,7 @@ sealed partial class MouseWindow
             return;
         }
         if(enabled.Checked){MessageBox.Show(this,"Stop controller mouse mode before installing the update.","StickMouse");return;}
-        try{SavePreferences();StopInput();UpdateClient.StartInstaller(preparedUpdate);Close();}
+        try{SavePreferences();StopInput();UpdateClient.StartInstaller(preparedUpdate);QuitApplication();}
         catch(Exception e){LogUpdateFailure(e);updateStatus.Text="Installer could not start. Current version is ready.";timer.Start();}
     }
 }

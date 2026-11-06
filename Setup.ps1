@@ -1,4 +1,4 @@
-param([switch]$CheckOnly, [switch]$PreviewMissing, [switch]$SelfTest, [string]$PreviewPath)
+param([switch]$CheckOnly, [switch]$PreviewMissing, [switch]$SelfTest, [string]$PreviewPath, [switch]$LaunchSmoke, [switch]$LoadFunctions)
 $ErrorActionPreference='Stop'
 function Find-Runtime {
     $paths=@("$env:ProgramFiles\dotnet\dotnet.exe","$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe","$env:USERPROFILE\.dotnet\dotnet.exe","$env:USERPROFILE\.codex\tools\dotnet-sdk-8\dotnet.exe")
@@ -12,6 +12,35 @@ function Find-Runtime {
         }
     }
     return $null
+}
+function Start-StickMouse([switch]$Smoke,[switch]$TraySmoke,[scriptblock]$RefreshUi={}) {
+    $token=[guid]::NewGuid().ToString('N')
+    $data=Join-Path $env:LOCALAPPDATA 'StickMouse'
+    if($Smoke){$data=Join-Path $PSScriptRoot '.verify/startup-test-data'}
+    $report=Join-Path $data ("startup/"+$token+".json")
+    $info=New-Object Diagnostics.ProcessStartInfo
+    $info.FileName=$script:runtime
+    $info.Arguments='"'+$script:dll+'" --launch-token '+$token
+    if($Smoke){$info.Arguments+=' --startup-smoke --diagnostics-dir "'+$data+'"'}
+    if($Smoke -and $TraySmoke){$info.Arguments+=" --tray-smoke"}
+    $info.WorkingDirectory=$PSScriptRoot
+    $info.UseShellExecute=$false
+    $info.CreateNoWindow=$true
+    $info.WindowStyle=[Diagnostics.ProcessWindowStyle]::Normal
+    $process=[Diagnostics.Process]::Start($info)
+    if(-not $process){throw 'SM113: The application process could not be started.'}
+    $watch=[Diagnostics.Stopwatch]::StartNew()
+    while($watch.Elapsed.TotalSeconds -lt 12){
+        & $RefreshUi
+        if(Test-Path -LiteralPath $report){
+            $ready=Get-Content -Raw -LiteralPath $report|ConvertFrom-Json
+            if(($ready.NativeVisible -and $ready.Status -in @('visible','restored')) -or ($ready.Status -eq 'tray' -and $ready.TrayIconVisible)){return $ready}
+        }
+        $process.Refresh()
+        if($process.HasExited -and $process.ExitCode -ne 0){throw ("SM113: StickMouse exited during startup ("+$process.ExitCode+"). See runtime.log.")}
+        Start-Sleep -Milliseconds 50
+    }
+    throw 'SM113: The window did not confirm it opened. Setup remains available. Check runtime.log or retry to restore it.'
 }
 function Select-Installer($metadata,$arch){
     $release=$metadata.releases|Where-Object {$_.windowsdesktop.version -eq $metadata.'latest-runtime'}|Select-Object -First 1
@@ -33,6 +62,8 @@ $script:osReady=[Environment]::OSVersion.Version.Major -ge 10
 $arch=$env:PROCESSOR_ARCHITEW6432
 if(-not $arch){$arch=$env:PROCESSOR_ARCHITECTURE}
 $script:arch=switch($arch){'AMD64'{'x64'} 'ARM64'{'arm64'} 'x86'{'x86'} default{throw 'SM104: Unsupported architecture.'}}
+if($LoadFunctions){return}
+if($LaunchSmoke){if(-not $script:runtime -or -not $script:files){throw 'Prerequisites missing'};Start-StickMouse -Smoke|ConvertTo-Json;exit 0}
 if($CheckOnly){[pscustomobject]@{Windows10OrLater=$script:osReady;Architecture=$script:arch;DesktopRuntimeAvailable=[bool]$script:runtime;ApplicationFilesAvailable=$script:files}|ConvertTo-Json;exit 0}
 if($SelfTest){
     $meta=@{'latest-runtime'='8.0.99';releases=@(@{windowsdesktop=@{version='8.0.99';files=@(@{rid='win-x64';name='runtime.exe';url='https://builds.dotnet.microsoft.com/runtime.exe';hash=('a'*128)})}})}
@@ -131,7 +162,7 @@ $script:Next.Add_Click({
             if(-not $script:runtime){throw 'SM111: Runtime not detected after installation. Restart Windows if requested, then retry.'}
         }
         $script:Progress.Text='Ready. Opening StickMouse...';Pump
-        Start-Process -FilePath $script:runtime -ArgumentList ('"'+$script:dll+'"') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden|Out-Null
+        Start-StickMouse -RefreshUi {Pump}|Out-Null
         $script:busy=$false;$script:window.Close()
     }catch{
         $script:Progress.Text=$_.Exception.Message
