@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Version,[Parameter(Mandatory=$true)][string]$KeyPath,[Parameter(Mandatory=$true)][string]$OutputDirectory,[string]$Notes='StickMouse improvements and fixes.')
+param([Parameter(Mandatory=$true)][string]$Version,[Parameter(Mandatory=$true)][string]$KeyPath,[Parameter(Mandatory=$true)][string]$OutputDirectory,[string]$Notes='StickMouse improvements and fixes.',[string]$CertificateThumbprint,[switch]$AllowUntrustedDevelopment)
 $ErrorActionPreference='Stop'
 $dotnet=(Get-Command dotnet.exe -ErrorAction SilentlyContinue).Source
 if(-not $dotnet -or -not (& $dotnet --list-sdks)){$dotnet=Join-Path $env:USERPROFILE '.codex/tools/dotnet-sdk-8/dotnet.exe'}
@@ -24,6 +24,10 @@ try {
     $stage=Join-Path $output ('stage-'+[guid]::NewGuid().ToString('N'))
     $files=@('Launch.cmd','Setup.ps1','README.md','bin/Release/net8.0-windows/StickMouse.dll','bin/Release/net8.0-windows/StickMouse.deps.json','bin/Release/net8.0-windows/StickMouse.runtimeconfig.json')
     foreach($file in $files){$target=Join-Path $stage $file;New-Item -ItemType Directory -Force (Split-Path $target)|Out-Null;Copy-Item -LiteralPath (Join-Path $root $file) -Destination $target}
+    if($CertificateThumbprint){
+        $auth=@{ApplicationRoot=$stage;CertificateThumbprint=$CertificateThumbprint;AllowUntrustedDevelopment=$AllowUntrustedDevelopment}
+        & (Join-Path $PSScriptRoot 'Sign-Release.ps1') @auth
+    }
     [IO.Compression.ZipFile]::CreateFromDirectory($stage,$zip)
     $manifest=@{Version=$Version;PackageUrl="https://github.com/$($trust.Repository)/releases/download/v$Version/StickMouse-Portable.zip";Sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash;Size=(Get-Item -LiteralPath $zip).Length;Notes=$Notes}|ConvertTo-Json -Compress
     $payload=[Text.Encoding]::UTF8.GetBytes($manifest)
