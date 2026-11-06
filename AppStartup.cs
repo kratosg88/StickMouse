@@ -29,14 +29,27 @@ static class AppStartup
             File.Move(path+".tmp",path,true);
         }catch(Exception e)when(e is IOException or UnauthorizedAccessException){Log("SM114",e.GetType().Name);}
     }
-    internal static void Attach(MouseWindow window)
+    internal static void Attach(MouseWindow window,bool integrateDesktop=true)
     {
         window.Shown+=(_,_)=>window.BeginInvoke((Action)(()=>{
+            if(integrateDesktop && LaunchToken is null)_=Task.Run(EnsureDesktopShortcut);
             if(window.StartInTray){window.HideToTray();window.Opacity=1;Ready("tray",window.Handle,true);return;}
+            window.Opacity=1;
             // Override an inherited SW_HIDE only after Windows consumed its first-show flag.
             ShowWindow(window.Handle,IsIconic(window.Handle)?9:5);
             window.Activate();SetForegroundWindow(window.Handle);Ready("visible",window.Handle);
         }));
+    }
+    static void EnsureDesktopShortcut()
+    {
+        try
+        {
+            var start=new ProcessStartInfo(Path.Combine(Environment.SystemDirectory,"WindowsPowerShell/v1.0/powershell.exe")){UseShellExecute=false,CreateNoWindow=true};
+            foreach(string argument in new[]{"-NoProfile","-STA","-ExecutionPolicy","Bypass","-File",Path.Combine(UpdateClient.Root,"Setup.ps1"),"-ShortcutOnly"})start.ArgumentList.Add(argument);
+            using var process=Process.Start(start);
+            if(process is null || !process.WaitForExit(10000) || process.ExitCode!=0)Log("SM115","desktop_shortcut_unavailable_app_remains_usable");
+        }
+        catch(Exception error){Log("SM115",error.GetType().Name);}
     }
     internal static bool RestoreExisting(bool smoke=false)
     {

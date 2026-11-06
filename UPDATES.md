@@ -18,3 +18,5 @@ References: https://docs.github.com/en/repositories/releasing-projects-on-github
 v1.1.2 adds visible-window startup confirmation and existing-window restore. The original six-file update layout and OTA trust identity are retained. New-Release.ps1 optionally accepts CertificateThumbprint for Authenticode staging signatures before ZIP/hash/signing; omit it for the current free GitHub build. SIGNING.md documents development-only self-signing and certificate requirements.
 
 Final v1.1.2 combines startup recovery with automatic tray operation and gamepad branding. The package retains six known file slots, so v1.1.0/v1.1.1 clients can accept it. Native icon resources are embedded in the DLL/apphost build; no extra client asset file is required.
+
+v1.1.3 creates a gamepad desktop shortcut after setup and repairs it during direct/OTA startup. Desktop quick launch checks local requirements then opens/restores the main UI. Shortcut failures are nonfatal SM115. Six-file package and existing OTA signing identity remain compatible. Keep the extracted folder in place.

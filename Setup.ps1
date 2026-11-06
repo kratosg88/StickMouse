@@ -1,4 +1,4 @@
-param([switch]$CheckOnly, [switch]$PreviewMissing, [switch]$SelfTest, [string]$PreviewPath, [switch]$LaunchSmoke, [switch]$LoadFunctions)
+param([switch]$CheckOnly, [switch]$PreviewMissing, [switch]$SelfTest, [string]$PreviewPath, [switch]$LaunchSmoke, [switch]$LoadFunctions, [switch]$QuickLaunch, [switch]$ShortcutOnly)
 $ErrorActionPreference='Stop'
 function Find-Runtime {
     $paths=@("$env:ProgramFiles\dotnet\dotnet.exe","$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe","$env:USERPROFILE\.dotnet\dotnet.exe","$env:USERPROFILE\.codex\tools\dotnet-sdk-8\dotnet.exe")
@@ -13,7 +13,7 @@ function Find-Runtime {
     }
     return $null
 }
-function Start-StickMouse([switch]$Smoke,[switch]$TraySmoke,[scriptblock]$RefreshUi={}) {
+function Start-StickMouse([switch]$Smoke,[switch]$TraySmoke,[switch]$OpenUi,[scriptblock]$RefreshUi={}) {
     $token=[guid]::NewGuid().ToString('N')
     $data=Join-Path $env:LOCALAPPDATA 'StickMouse'
     if($Smoke){$data=Join-Path $PSScriptRoot '.verify/startup-test-data'}
@@ -23,6 +23,7 @@ function Start-StickMouse([switch]$Smoke,[switch]$TraySmoke,[scriptblock]$Refres
     $info.Arguments='"'+$script:dll+'" --launch-token '+$token
     if($Smoke){$info.Arguments+=' --startup-smoke --diagnostics-dir "'+$data+'"'}
     if($Smoke -and $TraySmoke){$info.Arguments+=" --tray-smoke"}
+    if($OpenUi){$info.Arguments+=" --open-ui"}
     $info.WorkingDirectory=$PSScriptRoot
     $info.UseShellExecute=$false
     $info.CreateNoWindow=$true
@@ -41,6 +42,32 @@ function Start-StickMouse([switch]$Smoke,[switch]$TraySmoke,[scriptblock]$Refres
         Start-Sleep -Milliseconds 50
     }
     throw 'SM113: The window did not confirm it opened. Setup remains available. Check runtime.log or retry to restore it.'
+}
+function Ensure-DesktopShortcut([string]$DesktopDirectory=[Environment]::GetFolderPath('DesktopDirectory')) {
+    if([string]::IsNullOrWhiteSpace($DesktopDirectory) -or -not (Test-Path -LiteralPath $DesktopDirectory -PathType Container)){throw 'SM115: Desktop folder is unavailable.'}
+    $hostExe=Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    $setup=Join-Path $PSScriptRoot 'Setup.ps1'
+    $arguments='-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$setup+'" -QuickLaunch'
+    $marker='Open StickMouse by CoderKnight'
+    $shell=New-Object -ComObject WScript.Shell
+    try {
+        foreach($name in @('StickMouse.lnk','StickMouse - CoderKnight.lnk')) {
+            $path=Join-Path $DesktopDirectory $name
+            $link=$shell.CreateShortcut($path)
+            try {
+                if((Test-Path -LiteralPath $path) -and $link.Description -ne $marker){continue}
+                $link.TargetPath=$hostExe
+                $link.Arguments=$arguments
+                $link.WorkingDirectory=$PSScriptRoot
+                $link.Description=$marker
+                $link.IconLocation=(Join-Path $PSScriptRoot 'bin/Release/net8.0-windows/StickMouse.dll')+',0'
+                $link.WindowStyle=1
+                $link.Save()
+                return $path
+            } finally {[Runtime.InteropServices.Marshal]::FinalReleaseComObject($link)|Out-Null}
+        }
+        throw 'SM115: Desktop shortcut names are already used by other programs.'
+    } finally {[Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)|Out-Null}
 }
 function Select-Installer($metadata,$arch){
     $release=$metadata.releases|Where-Object {$_.windowsdesktop.version -eq $metadata.'latest-runtime'}|Select-Object -First 1
@@ -63,6 +90,14 @@ $arch=$env:PROCESSOR_ARCHITEW6432
 if(-not $arch){$arch=$env:PROCESSOR_ARCHITECTURE}
 $script:arch=switch($arch){'AMD64'{'x64'} 'ARM64'{'arm64'} 'x86'{'x86'} default{throw 'SM104: Unsupported architecture.'}}
 if($LoadFunctions){return}
+if($ShortcutOnly){
+    try{Ensure-DesktopShortcut|Out-Null;exit 0}
+    catch{try{$dir=Join-Path $env:LOCALAPPDATA 'StickMouse';New-Item -ItemType Directory -Force $dir|Out-Null;Add-Content (Join-Path $dir 'setup.log') ((Get-Date).ToUniversalTime().ToString('o')+' SM115 '+$_.Exception.GetType().Name)}catch{};exit 1}
+}
+if($QuickLaunch -and $script:runtime -and $script:files -and $script:osReady){
+    Start-StickMouse -OpenUi|Out-Null
+    exit 0
+}
 if($LaunchSmoke){if(-not $script:runtime -or -not $script:files){throw 'Prerequisites missing'};Start-StickMouse -Smoke|ConvertTo-Json;exit 0}
 if($CheckOnly){[pscustomobject]@{Windows10OrLater=$script:osReady;Architecture=$script:arch;DesktopRuntimeAvailable=[bool]$script:runtime;ApplicationFilesAvailable=$script:files}|ConvertTo-Json;exit 0}
 if($SelfTest){
@@ -103,6 +138,7 @@ Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
 <TextBlock Text="The app automatically detects XInput controllers. You can connect your gamepad after opening it." Margin="0,8,0,8" TextWrapping="Wrap"/>
 <TextBlock Text="Native PlayStation controllers need a separately configured XInput adapter. No third-party drivers are installed here." Foreground="#A3AEB3" FontSize="12" TextWrapping="Wrap"/>
 <TextBlock Text="Downloads come from Microsoft. Installation may ask for administrator approval. No forced restart." Foreground="#A3AEB3" FontSize="12" TextWrapping="Wrap" Margin="0,18,0,0"/>
+<TextBlock Text="A StickMouse desktop shortcut will be created after setup." Foreground="#A3AEB3" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,0"/>
 <TextBlock Name="Progress" Text="No downloads until you choose Next." Foreground="#A3AEB3" TextWrapping="Wrap" Margin="0,18,0,18"/>
 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 <Button Name="Refresh" Content="Check again" HorizontalAlignment="Left" Background="#252D32" Foreground="#EDF1EF"/>
@@ -162,7 +198,13 @@ $script:Next.Add_Click({
             if(-not $script:runtime){throw 'SM111: Runtime not detected after installation. Restart Windows if requested, then retry.'}
         }
         $script:Progress.Text='Ready. Opening StickMouse...';Pump
-        Start-StickMouse -RefreshUi {Pump}|Out-Null
+        Start-StickMouse -OpenUi:$QuickLaunch -RefreshUi {Pump}|Out-Null
+        try { Ensure-DesktopShortcut|Out-Null }
+        catch {
+            $script:Progress.Text='StickMouse is running. The desktop shortcut could not be created. Click Next to retry or Cancel to close. (SM115)'
+            try{$dir=Join-Path $env:LOCALAPPDATA 'StickMouse';New-Item -ItemType Directory -Force $dir|Out-Null;Add-Content (Join-Path $dir 'setup.log') ((Get-Date).ToUniversalTime().ToString('o')+' SM115 '+$_.Exception.GetType().Name)}catch{}
+            return
+        }
         $script:busy=$false;$script:window.Close()
     }catch{
         $script:Progress.Text=$_.Exception.Message

@@ -9,7 +9,8 @@ sealed partial class MouseWindow
     readonly Icon appIcon=GamepadIcons.Create();
     ToolStripMenuItem? trayState, trayControl;
     bool exitRequested, trayHintShown;
-    internal bool StartInTray => trayIcon?.Visible==true;
+    internal bool StartupOpenRequested {get;set;}
+    internal bool StartInTray => trayIcon?.Visible==true && !StartupOpenRequested;
     void InitializeTray()
     {
         trayMenu=new ContextMenuStrip();

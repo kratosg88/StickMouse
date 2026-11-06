@@ -12,3 +12,5 @@ Updates: compact Check for updates control and status row under settings; unavai
 Publisher attribution: small by CoderKnight text beneath the app wordmark and CODERKNIGHT in the setup brand line.
 
 Gamepad branding replaces the plus mark in header, tray, taskbar/titlebar and executable icon resource. Tray startup is automatic with no Start in tray control. Open/Start/Pause/Quit are available in the gamepad context menu; one tray hint explains recovery. Main window preview intentionally renders UI even though normal startup is hidden.
+
+Desktop launch (v1.1.3): setup explains automatic gamepad shortcut creation. Explicit desktop opening shows the main window; regular Launch.cmd keeps automatic tray startup. The shortcut reuses the embedded gamepad icon and opens the same single instance.

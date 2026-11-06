@@ -50,7 +50,8 @@ static class Program
         if (!first) { if(!AppStartup.RestoreExisting(args.Contains("--startup-smoke")))MessageBox.Show("The existing StickMouse window did not respond. Check its taskbar button or close StickMouse in Task Manager, then retry. Code: SM013.","StickMouse"); return; }
         using var app = new MouseWindow(args.Contains("--startup-smoke"),null,args.Contains("--tray-smoke"));
         if(args.Contains("--startup-smoke"))app.Text="StickMouse [startup test]";
-        AppStartup.Attach(app);
+        app.StartupOpenRequested=args.Contains("--open-ui");
+        AppStartup.Attach(app,!args.Contains("--startup-smoke"));
         using var smokeTimer=new System.Windows.Forms.Timer{Interval=15000};
         if(args.Contains("--startup-smoke")){smokeTimer.Tick+=(_,_)=>app.QuitApplication();smokeTimer.Start();}
         try { Application.Run(app); } finally { app.StopInput(); }
