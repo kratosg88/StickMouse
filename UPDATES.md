@@ -20,3 +20,5 @@ v1.1.2 adds visible-window startup confirmation and existing-window restore. The
 Final v1.1.2 combines startup recovery with automatic tray operation and gamepad branding. The package retains six known file slots, so v1.1.0/v1.1.1 clients can accept it. Native icon resources are embedded in the DLL/apphost build; no extra client asset file is required.
 
 v1.1.3 creates a gamepad desktop shortcut after setup and repairs it during direct/OTA startup. Desktop quick launch checks local requirements then opens/restores the main UI. Shortcut failures are nonfatal SM115. Six-file package and existing OTA signing identity remain compatible. Keep the extracted folder in place.
+
+v1.2.0 adds persistent button/trigger mappings, configurable cursor/scroll stick roles, scroll speed, middle/Back/Forward clicks, double-click, drag toggle, wheel and direction/precision/pause actions. L3/R3 defaults are unchanged; right stick defaults to scrolling. Mapping editor pauses control and applies a draft explicitly. Five-button accepted-transition tracking preserves failed releases. Older preferences migrate; the signed six-file OTA package is unchanged.

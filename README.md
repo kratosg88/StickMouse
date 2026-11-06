@@ -12,12 +12,27 @@ On later uses, double-click the desktop **StickMouse** shortcut to open the main
 The ready check detects Windows, processor architecture, application files and .NET 8 Desktop Runtime. If the runtime is missing, select its checkbox and click Next. Setup retrieves the current .NET 8 release from Microsoft, verifies SHA-512 and the Microsoft publisher signature, and runs its installer. Approve the Windows administrator prompt if asked. No restart is forced. Failed/cancelled installation stays on the setup screen with an error and can be retried. Installed components are skipped. No download occurs before Next; normal launches with a suitable runtime work offline. Windows itself must be upgraded/repaired separately when required.
 
 ## Controller
-The app starts stopped in the Windows notification tray. Double-click its gamepad icon or choose Open StickMouse to show the settings window. It polls for XInput controllers automatically. While disconnected it says **No controller detected** and disables **Start controller mouse**. Connect a controller, then click Start. Click Stop, use Pause in the tray menu, or press F8 to pause. Disconnecting stops control and releases held mouse buttons; reconnecting requires Start again. The app waits for L3 and R3 to be released before arming clicks.
+The app starts stopped in the Windows notification tray. Double-click its gamepad icon or choose Open StickMouse to show the settings window. It polls for XInput controllers automatically. While disconnected it says **No controller detected** and disables **Start controller mouse**. Connect a controller, then click Start. Click Stop, use Pause in the tray menu, or press F8 to pause. Disconnecting stops control and releases held mouse buttons; reconnecting requires Start again. After Start or reconnect, release all assigned buttons/triggers and center enabled sticks before mouse actions arm.
 
 - Left stick: move cursor.
 - Press L3: left-click; hold to drag.
 - Press R3: right-click.
-- Triggers are unused.
+- Right stick: scroll vertically or horizontally.
+- Other buttons and triggers are unassigned until you customize them.
+
+## Customize buttons and sticks
+Click **Button mapping** in the main window. Assign any of the 16 standard XInput controls (face buttons, L3/R3, shoulders, triggers, D-pad, Menu and View) to:
+
+- Left/right/middle click and hold, or mouse Back/Forward (buttons 4 and 5).
+- Double left/right click, or toggle left drag.
+- Scroll up/down/left/right, or move the cursor in any direction while held.
+- Hold for 25% precision speed, pause mouse control, or leave unassigned.
+
+Each stick can move the cursor, scroll in both directions, or be disabled. Set scroll speed from 1 to 30 wheel steps per second. Multiple controls may share an action without releasing another control's hold. Click actions hold until release for dragging; double-click and drag toggle fire once per press. Scrolling repeats while held. Trigger actions press at 140/255 and release below 90/255 to avoid jitter.
+
+**Apply & save** persists your mappings on this device. **Cancel** discards the draft; **Reset mappings** resets the draft without changing sensitivity. Control pauses on opening/applying the editor and stays paused afterward; click Start or press F8 to resume. Pausing, disconnecting, quitting and applying mappings release every held mouse button, including drag toggle. If Windows rejects input, SM001 pauses control and retries pending releases. Settings from older releases retain sensitivity and L3/R3 click defaults.
+
+This covers standard Windows mouse buttons, movement and wheel events; app-specific gestures, vendor DPI/RGB controls, touchpad gestures and reserved Guide/Share buttons are outside standard XInput. Native PlayStation support still requires XInput compatibility. Horizontal wheel and extra-button behavior depend on the receiving application.
 
 Sensitivity sets nominal relative movement speed (Windows pointer settings also affect the result). Dead zone reduces drift. Response curve increases precision near the stick center. Vertical inversion and Reset defaults are available. Sliders support dragging, arrows, Home/End, keyboard focus and accessible values.
 

@@ -28,6 +28,9 @@ static class PaintKit
 sealed class SettingsCanvas : Panel
 {
     bool connected, active;
+    public string CursorReference {get;set;}="Left stick";
+    public string LeftReference {get;set;}="Left click / hold to drag";
+    public string RightReference {get;set;}="Right click / hold";
     public bool Connected { get => connected; set { if (connected != value) { connected=value; Invalidate(); } } }
     public bool Active { get => active; set { if(active!=value){active=value;Invalidate();} } }
     public SettingsCanvas() { DoubleBuffered = true; BackColor = MouseWindow.Canvas; }
@@ -50,13 +53,13 @@ sealed class SettingsCanvas : Panel
         PaintKit.Text(g, "XINPUT", 117, 324, 9, accent, true);
         using (var b = new SolidBrush(connected ? accent : muted)) g.FillEllipse(b, 34, 380, 6, 6);
         PaintKit.Text(g, "QUICK REFERENCE", 32, 444, 10, muted, true);
-        PaintKit.Text(g, "Left stick", 32, 470, 12, ink); PaintKit.Text(g, "Move cursor", 125, 470, 12, muted);
-        PaintKit.Text(g, "L3", 32, 499, 12, ink, true); PaintKit.Text(g, "Left click / drag", 125, 499, 12, muted);
+        PaintKit.Text(g, CursorReference, 32, 470, 12, ink); PaintKit.Text(g, "Move cursor", 125, 470, 12, muted);
+        PaintKit.Text(g, "L3", 32, 499, 12, ink, true); PaintKit.Text(g, LeftReference, 86, 499, 11, muted, width:158);
         PaintKit.Text(g, "F8   Pause / resume", 32, 561, 10, accent);
-        PaintKit.Text(g, "R3", 32, 528, 12, ink, true); PaintKit.Text(g, "Right click", 125, 528, 12, muted);
+        PaintKit.Text(g, "R3", 32, 528, 12, ink, true); PaintKit.Text(g, RightReference, 86, 528, 11, muted, width:158);
         float x = 282, rw = w-x-32;
         PaintKit.Text(g, "Cursor control", x, 101, 22, ink, true);
-        PaintKit.Text(g, "Fine-tune the feel of your left stick.", x, 135, 12, muted, width:rw-190);
+        PaintKit.Text(g, "Fine-tune cursor movement.", x, 135, 12, muted, width:rw-190);
         g.DrawLine(line, x, 165, w-32, 165);
         g.DrawLine(line, x, 462, w-32, 462);
         PaintKit.Text(g, "Invert vertical axis", x, 474, 13, ink, true);

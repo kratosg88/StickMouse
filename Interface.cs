@@ -9,7 +9,15 @@ sealed class Preferences
     public int DeadZone { get; set; } = 20;
     public int Response { get; set; } = 16;
     public bool InvertY { get; set; }
-    public static Preferences Normalize(Preferences p) => new() { Speed = Math.Clamp(p.Speed, 200, 2400), DeadZone = Math.Clamp(p.DeadZone, 5, 40), Response = Math.Clamp(p.Response, 10, 30), InvertY = p.InvertY };
+    public Dictionary<string, MouseAction> Buttons { get; set; } = Bindings.Defaults();
+    public StickRole LeftStickRole { get; set; } = StickRole.Cursor;
+    public StickRole RightStickRole { get; set; } = StickRole.Scroll;
+    public int ScrollSpeed { get; set; } = 8;
+    public static Preferences Normalize(Preferences p) => new() {
+        Speed=Math.Clamp(p.Speed,200,2400),DeadZone=Math.Clamp(p.DeadZone,5,40),Response=Math.Clamp(p.Response,10,30),InvertY=p.InvertY,
+        Buttons=Bindings.Normalize(p.Buttons),LeftStickRole=Enum.IsDefined(p.LeftStickRole)?p.LeftStickRole:StickRole.Cursor,
+        RightStickRole=Enum.IsDefined(p.RightStickRole)?p.RightStickRole:StickRole.Scroll,ScrollSpeed=Math.Clamp(p.ScrollSpeed,1,30) };
+
 }
 
 sealed partial class MouseWindow
@@ -67,7 +75,8 @@ sealed partial class MouseWindow
     }
     readonly SettingsCanvas canvas = new();
     readonly System.Windows.Forms.Timer saveTimer = new() { Interval = 450 };
-    bool loadingPreferences;
+    bool loadingPreferences, mappingEditorOpen;
+    Preferences mappingPreferences = new();
     readonly Dictionary<Control, Font> layoutFonts = new();
     void BuildInterface()
     {
@@ -86,6 +95,9 @@ sealed partial class MouseWindow
         reset.FlatAppearance.BorderSize = 0; reset.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 52, 50);
         reset.Click += (_, _) => { ApplyPreferences(new()); QueueSave(); };
         canvas.Controls.Add(reset);
+        var mappingButton=new Button{Text="Button mapping",FlatStyle=FlatStyle.Flat,BackColor=Surface,ForeColor=Mint,TabIndex=6,AccessibleName="Customize controller buttons and sticks"};
+        mappingButton.FlatAppearance.BorderColor=PaintKit.Line;
+        mappingButton.Click+=(_,_)=>OpenMappings();canvas.Controls.Add(mappingButton);
         enabled.TabIndex = 0; speed.TabIndex = 1; deadZone.TabIndex = 2; response.TabIndex = 3; invertY.TabIndex = 4;
         void LayoutCanvas()
         {
@@ -98,8 +110,9 @@ sealed partial class MouseWindow
             invertY.SetBounds(x + width - U(48), U(477), U(48), U(28));
             reset.SetBounds(x, U(540), U(112), U(28));
             preferenceNote.SetBounds(x + U(126), U(544), width - U(126), U(28));
+            mappingButton.SetBounds(U(32),U(582),U(210),U(28));
             status.SetBounds(U(50), U(377), U(188), U(56));
-            foreach (Control c in new Control[] { reset, preferenceNote, status })
+            foreach (Control c in new Control[] { reset, preferenceNote, status, mappingButton })
             {
                 int size = U(c == status ? 12 : 11);
                 if (!layoutFonts.TryGetValue(c, out var old) || old.Size != size)
@@ -127,7 +140,31 @@ sealed partial class MouseWindow
         if (loadingPreferences || (previewMode && preferencesOverride is null)) return;
         preferenceNote.Text = "Saving settings�"; saveTimer.Stop(); saveTimer.Start();
     }
-    void ApplyPreferences(Preferences p) { loadingPreferences = true; try { speed.Value = p.Speed; deadZone.Value = p.DeadZone; response.Value = p.Response; invertY.Checked = p.InvertY; } finally { loadingPreferences = false; } }
+    internal Preferences CurrentPreferences() => new() { Speed=speed.Value,DeadZone=deadZone.Value,Response=response.Value,InvertY=invertY.Checked,
+        Buttons=mappingPreferences.Buttons,LeftStickRole=mappingPreferences.LeftStickRole,RightStickRole=mappingPreferences.RightStickRole,ScrollSpeed=mappingPreferences.ScrollSpeed };
+    void ApplyPreferences(Preferences p)
+    {
+        p=Preferences.Normalize(p);
+        if(enabled.Checked)enabled.Checked=false;
+        Release();
+        loadingPreferences=true;
+        try { speed.Value=p.Speed;deadZone.Value=p.DeadZone;response.Value=p.Response;invertY.Checked=p.InvertY;mappingPreferences=p;UpdateMappingReference(); }
+        finally {loadingPreferences=false;}
+    }
+    void UpdateMappingReference()
+    {
+        canvas.CursorReference=mappingPreferences.LeftStickRole==StickRole.Cursor?"Left stick":mappingPreferences.RightStickRole==StickRole.Cursor?"Right stick":"Buttons";
+        canvas.LeftReference=Bindings.Label(Bindings.Action(mappingPreferences,PadControl.LeftStick));
+        canvas.RightReference=Bindings.Label(Bindings.Action(mappingPreferences,PadControl.RightStick));canvas.Invalidate();
+    }
+    void OpenMappings()
+    {
+        enabled.Checked=false;Release();mappingEditorOpen=true;UpdateConnection(controller);
+        try {
+            using var editor=new MappingWindow(CurrentPreferences());
+            if(editor.ShowDialog(this)==DialogResult.OK){ApplyPreferences(editor.Result);QueueSave();}
+        } finally {mappingEditorOpen=false;UpdateConnection(controller);}
+    }
     void LoadPreferences()
     {
         if (!File.Exists(PreferencesPath)) return;
@@ -140,7 +177,7 @@ sealed partial class MouseWindow
         {
             Directory.CreateDirectory(Path.GetDirectoryName(PreferencesPath)!);
             string temp = PreferencesPath + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(new Preferences { Speed = speed.Value, DeadZone = deadZone.Value, Response = response.Value, InvertY = invertY.Checked }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(temp, JsonSerializer.Serialize(CurrentPreferences(), new JsonSerializerOptions { WriteIndented = true }));
             File.Move(temp, PreferencesPath, true);
             preferenceNote.Text = "All changes saved";
         }

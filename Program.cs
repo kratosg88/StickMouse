@@ -26,12 +26,13 @@ static class Program
             return;
         }
         if (args.Length == 2 && args[0] == "--apply-update") { UpdateClient.Apply(args[1]); return; }
-        if (args.Contains("--self-test")) { Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize(); Motion.Test(); UpdateTests.Run(); MouseButtonLatch.Test(); MouseWindow.TestInterface(); MouseWindow.TestTray(); return; }
+        if (args.Contains("--self-test")) { Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize(); Motion.Test(); UpdateTests.Run(); MouseButtonLatch.Test(); MappingTests.Run(); MouseWindow.TestInterface(); MouseWindow.TestMappingInterface(); MouseWindow.TestTray(); return; }
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException); ApplicationConfiguration.Initialize();
         if (args.Contains("--preview"))
         {
             using var window = new MouseWindow(true);
             if (args.Contains("--connected-preview")) window.UpdateConnection(0);
+            if (args.Contains("--mapping-preview")) { using var mapping=new MappingWindow(window.CurrentPreferences()); mapping.Show(); Application.DoEvents(); if(args.Contains("--mapping-bottom-preview"))mapping.ScrollToBottom(); using var shot=new Bitmap(mapping.Width,mapping.Height); mapping.DrawToBitmap(shot,new Rectangle(Point.Empty,shot.Size)); shot.Save(args[Array.IndexOf(args,"--preview")+1]); mapping.Close(); return; }
             window.Show(); Application.DoEvents();
             using var bitmap = new Bitmap(window.Width, window.Height);
             window.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
@@ -96,9 +97,7 @@ sealed partial class MouseWindow : Form
     string? inputError;
     readonly bool previewMode;
     readonly Stopwatch clock = Stopwatch.StartNew();
-    double remainderX, remainderY;
-    bool armed;
-    readonly MouseButtonLatch buttons = new();
+    readonly ControllerMouse mouse = new();
     int lastInputError;
     int controller = -1;
     readonly string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StickMouse", "runtime.log");
@@ -109,7 +108,7 @@ sealed partial class MouseWindow : Form
         BuildInterface();
         LoadPreferences();
         if(!previewMode || trayForTests)InitializeTray();
-        enabled.CheckedChanged += (_, _) => { Release(); armed = false; if (enabled.Checked) inputError = null; UpdateStatus(); };
+        enabled.CheckedChanged += (_, _) => { Release(); if (enabled.Checked) inputError = null; UpdateStatus(); };
         UpdateConnection(-1);
         timer.Tick += (_, _) => TickInput();
 
@@ -150,24 +149,20 @@ sealed partial class MouseWindow : Form
         timer.Interval = found < 0 ? 250 : 8;
         UpdateStatus();
         if (found < 0 || !enabled.Checked) { Release(); return; }
-        bool left = (state.pad.buttons & 0x0040) != 0, right = (state.pad.buttons & 0x0080) != 0;
-        if (!armed) { if (buttons.Pending && !buttons.Release(flags => Send(0, 0, flags))) return; if (!left && !right) armed = true; return; }
-        var (vx, vy) = Motion.Velocity(state.pad.lx, state.pad.ly, speed.Value, deadZone.Value / 100.0, response.Value / 10.0);
-        if (invertY.Checked) vy = -vy;
-        remainderX += vx * dt; remainderY += vy * dt;
-        int dx = (int)remainderX, dy = (int)remainderY; remainderX -= dx; remainderY -= dy;
-        if ((dx != 0 || dy != 0) && !Send(dx, dy, 0x0001)) { InputFailed(); return; }
-        if (!buttons.Update(left, right, flags => Send(0, 0, flags))) InputFailed();
+        var result=mouse.Step(state.pad, CurrentPreferences(), dt, Send);
+        if(result==InputResult.Rejected)InputFailed();
+        else if(result==InputResult.Pause)enabled.Checked=false;
     }
+
     internal void UpdateConnection(int found)
     {
-        if (found != controller) { Release(); armed = false; enabled.Checked = false; inputError = null; controller = found; }
-        enabled.Enabled = found >= 0;
+        if (found != controller) { Release(); enabled.Checked = false; inputError = null; controller = found; }
+        enabled.Enabled = found >= 0 && !mappingEditorOpen;
         UpdateStatus();
     }
     void UpdateStatus()
     {
-        status.Text = inputError ?? (controller < 0 ? "No controller detected\nConnect via USB or Bluetooth" : $"Controller {controller + 1} connected\n{(enabled.Checked ? "Mouse control active" : "Ready. Press Start to begin.")}");
+        status.Text = inputError ?? (mappingEditorOpen ? "Editing button mappings\nApply or Cancel to continue" : controller < 0 ? "No controller detected\nConnect via USB or Bluetooth" : $"Controller {controller + 1} connected\n{(enabled.Checked ? "Mouse control active" : "Ready. Press Start to begin.")}");
         canvas.Connected = controller >= 0;
         canvas.Active = enabled.Checked;
         UpdateTray();
@@ -175,16 +170,15 @@ sealed partial class MouseWindow : Form
     internal void StopInput() { timer.Stop(); Release(); }
     void Release()
     {
-        if (!buttons.Release(flags => Send(0, 0, flags)) && inputError is null)
+        if (!mouse.Stop(Send) && inputError is null)
         {
             inputError = "SM001: Button release pending.\nReturn to the desktop to retry.";
             SettingsFailure("SM001", "Windows rejected a button release; retrying.", new System.ComponentModel.Win32Exception(lastInputError));
         }
-        remainderX = remainderY = 0;
     }
-    bool Send(int x, int y, uint flags)
+    bool Send(MouseEvent e)
     {
-        var inputs = new[] { new Native.Input { type = 0, data = new Native.InputUnion { mouse = new Native.MouseInput { dx = x, dy = y, flags = flags } } } };
+        var inputs = new[] { new Native.Input { type = 0, data = new Native.InputUnion { mouse = new Native.MouseInput { dx = e.X, dy = e.Y, flags = e.Flags, data = e.Data } } } };
         bool accepted = Native.SendInput(1, inputs, Marshal.SizeOf<Native.Input>()) == 1;
         if (!accepted) lastInputError = Marshal.GetLastWin32Error();
         return accepted;

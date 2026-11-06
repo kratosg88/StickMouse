@@ -1,24 +1,35 @@
 namespace StickMouse;
 
-// A button is considered released only after Windows accepts its release event.
+[Flags] enum MouseHold { None=0, Left=1, Right=2, Middle=4, Back=8, Forward=16 }
+
+// Track accepted transitions, including a rejected release until it can be retried.
 sealed class MouseButtonLatch
 {
-    public bool Left { get; private set; }
-    public bool Right { get; private set; }
-    public bool Pending => Left || Right;
-    public bool Update(bool left, bool right, Func<uint, bool> send)
+    MouseHold held;
+    public bool Left => (held & MouseHold.Left)!=0;
+    public bool Right => (held & MouseHold.Right)!=0;
+    public bool Pending => held!=MouseHold.None;
+    static readonly (MouseHold button,uint down,uint up,uint data)[] Events = {
+        (MouseHold.Left,2,4,0),(MouseHold.Right,8,16,0),(MouseHold.Middle,32,64,0),
+        (MouseHold.Back,128,256,1),(MouseHold.Forward,128,256,2) };
+    public bool Update(MouseHold desired,Func<MouseEvent,bool> send)
     {
-        if (left != Left) { if (!send(left ? 2u : 4u)) return false; Left = left; }
-        if (right != Right) { if (!send(right ? 8u : 16u)) return false; Right = right; }
+        // Release stale owners first, before any new press.
+        foreach(var e in Events) if((held&e.button)!=0 && (desired&e.button)==0)
+        { if(!send(new(0,0,e.up,e.data)))return false; held &= ~e.button; }
+        foreach(var e in Events) if((held&e.button)==0 && (desired&e.button)!=0)
+        { if(!send(new(0,0,e.down,e.data)))return false; held |= e.button; }
         return true;
     }
-    public bool Release(Func<uint, bool> send)
+    public bool ReleaseEvents(Func<MouseEvent,bool> send)
     {
-        bool ok = true;
-        if (Left) { if (send(4)) Left = false; else ok = false; }
-        if (Right) { if (send(16)) Right = false; else ok = false; }
+        bool ok=true;
+        foreach(var e in Events) if((held&e.button)!=0)
+        { if(send(new(0,0,e.up,e.data)))held &= ~e.button; else ok=false; }
         return ok;
     }
+    public bool Update(bool left,bool right,Func<uint,bool> send) => Update((left?MouseHold.Left:0)|(right?MouseHold.Right:0), e=>send(e.Flags));
+    public bool Release(Func<uint,bool> send) => ReleaseEvents((MouseEvent e)=>send(e.Flags));
     public static void Test()
     {
         var latch = new MouseButtonLatch(); var events = new List<uint>();
